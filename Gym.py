@@ -90,6 +90,7 @@ app.layout = dbc.Container([
             html.Label('Comments', style={'font-size': '18px', 'margin-top': '10px'}),
             dbc.Input(id='comments-input', type='text', style={'font-size': '16px'}),
         ], width=12, className='mb-3'),
+    ]),
     dbc.Row([
         dbc.Col([
             dbc.Button('Save', id='save-button', color='primary', className='mt-2', style={'width': '100%', 'font-size': '18px'}),
