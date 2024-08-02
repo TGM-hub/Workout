@@ -137,7 +137,7 @@ def save_to_db(n_clicks, workout, exercise, reps, weight, form, rir, comments):
         return 'Please fill in all fields.'
     # Calculate 5Max
     max5 = calculate_5max(reps, weight, rir)
-        try:
+    try:
         # Connect to SQLite database
         conn = sqlite3.connect('exercise_log.db')
         cursor = conn.cursor()
