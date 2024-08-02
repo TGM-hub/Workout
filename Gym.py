@@ -127,26 +127,48 @@ def calculate_5max(reps, weight, rir):
      State('reps-input', 'value'),
      State('weight-input', 'value'),
      State('form-input', 'value'),
+     State('comments-input', 'value'),
      State('rir-input', 'value')]
 )
-def save_to_db(n_clicks, workout, exercise, reps, weight, form, rir):
+def save_to_db(n_clicks, workout, exercise, reps, weight, form, rir, comments):
     if n_clicks is None:
         return ''
     if None in [workout, exercise, reps, weight, form, rir]:
         return 'Please fill in all fields.'
     # Calculate 5Max
-    max5 = calculate_5max(reps, weight)
-    # Connect to SQLite database
-    conn = sqlite3.connect('exercise_log.db')
-    cursor = conn.cursor()
-    # Insert data into the table
-    cursor.execute('''
-        INSERT INTO exercise_log (Time, Workout, Exercise, Reps, Weight, RIR, Form, Max5)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), workout, exercise, reps, weight, rir, form, max5))
-    # Commit the changes and close the connection
-    conn.commit()
-    conn.close()
+    max5 = calculate_5max(reps, weight, rir)
+        try:
+        # Connect to SQLite database
+        conn = sqlite3.connect('exercise_log.db')
+        cursor = conn.cursor()
+        
+        # Check if the last save for the same workout and exercise was within 2 minutes
+        cursor.execute('''
+            SELECT Time
+            FROM exercise_log
+            WHERE Workout = ? AND Exercise = ?
+            ORDER BY Time DESC
+            LIMIT 1
+        ''', (workout, exercise))
+        last_time = cursor.fetchone()
+        
+        if last_time:
+            last_time = datetime.strptime(last_time[0], '%Y-%m-%d %H:%M:%S')
+            if datetime.now() - last_time < timedelta(minutes=2):
+                return 'You can only save once every 2 minutes.'
+        
+        # Insert data into the table
+        cursor.execute('''
+            INSERT INTO exercise_log (Time, Workout, Exercise, Reps, Weight, RIR, Form, Max5, Commentary)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), workout, exercise, reps, weight, rir, form, max5, commentary))
+        
+        # Commit the changes and close the connection
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        return f'An error occurred: {str(e)}'
+    
     return 'Data saved successfully.'
 
 # Callback to display the exercise history
