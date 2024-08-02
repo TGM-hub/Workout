@@ -18,6 +18,29 @@ df_long = df.melt(var_name='Workout', value_name='Exercise').dropna()
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server  # Expose the Flask server instance for gunicorn
 
+def init_db():
+    conn = sqlite3.connect('exercise_log.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS exercise_log (
+            id INTEGER PRIMARY KEY,
+            Time TEXT,
+            Workout TEXT,
+            Exercise TEXT,
+            Reps INTEGER,
+            Weight INTEGER,
+            RIR INTEGER,
+            Form INTEGER,
+            Max5 REAL,
+            Comments TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# Call the database initialization function
+init_db()
+
 # Define the layout of the app
 app.layout = dbc.Container([
     dbc.Row([
@@ -62,6 +85,11 @@ app.layout = dbc.Container([
             dbc.Input(id='rir-input', type='number', min=0, max=10, step=1, style={'font-size': '16px'}),
         ], width=6, className='mb-3'),
     ]),
+    dbc.Row([
+        dbc.Col([
+            html.Label('Comments', style={'font-size': '18px', 'margin-top': '10px'}),
+            dbc.Input(id='comments-input', type='text', style={'font-size': '16px'}),
+        ], width=12, className='mb-3'),
     dbc.Row([
         dbc.Col([
             dbc.Button('Save', id='save-button', color='primary', className='mt-2', style={'width': '100%', 'font-size': '18px'}),
@@ -159,9 +187,9 @@ def save_to_db(n_clicks, workout, exercise, reps, weight, form, rir, comments):
         
         # Insert data into the table
         cursor.execute('''
-            INSERT INTO exercise_log (Time, Workout, Exercise, Reps, Weight, RIR, Form, Max5, Commentary)
+            INSERT INTO exercise_log (Time, Workout, Exercise, Reps, Weight, RIR, Form, Max5, Comments)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), workout, exercise, reps, weight, rir, form, max5, commentary))
+        ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), workout, exercise, reps, weight, rir, form, max5, comments))
         
         # Commit the changes and close the connection
         conn.commit()
