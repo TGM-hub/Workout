@@ -124,40 +124,24 @@ def update_exercise_dropdown(selected_workout):
 
 # Function to calculate 5Max
 def calculate_5max(reps, weight, rir):
-
     try:
-        # Convert inputs to integers
         reps = int(reps)
         rir = int(rir)
         
-        # Define a dictionary for multipliers
         multipliers = {
-            3: 0.935,
-            4: 0.963,
-            5: 1,
-            6: 1.02,
-            7: 1.048,
-            8: 1.077,
-            9: 1.105,
-            10: 1.133,
-            11: 1.162,
-            12: 1.19
+            3: 0.935, 4: 0.963, 5: 1, 6: 1.02,
+            7: 1.048, 8: 1.077, 9: 1.105, 10: 1.133,
+            11: 1.162, 12: 1.19
         }
         
-        # Calculate total reps
         total_reps = reps + rir
-        
-        # Lookup multiplier based on total reps
         multiplier = multipliers.get(total_reps)
         
-        # Calculate and return 5Max, or return None if total_reps is not in multipliers
         if multiplier is not None:
             return weight * multiplier
         else:
             return None
     except (ValueError, TypeError):
-        # Handle the case where conversion fails or inputs are invalid
-        print("Invalid input for reps or rir; must be integers.")
         return None
 
 # Callback to save the data to the SQLite database
@@ -175,10 +159,15 @@ def calculate_5max(reps, weight, rir):
 def save_to_db(n_clicks, workout, exercise, reps, weight, form, rir, comments):
     if n_clicks is None:
         return ''
+    
     if None in [workout, exercise, reps, weight, form, rir]:
         return 'Please fill in all fields.'
+    
     # Calculate 5Max
     max5 = calculate_5max(reps, weight, rir)
+    if max5 is None:
+        return 'Invalid inputs for 5Max calculation.'
+    
     try:
         # Connect to SQLite database
         conn = sqlite3.connect('exercise_log.db')
@@ -197,17 +186,19 @@ def save_to_db(n_clicks, workout, exercise, reps, weight, form, rir, comments):
         if last_time:
             last_time = datetime.strptime(last_time[0], '%Y-%m-%d %H:%M:%S')
             if datetime.now() - last_time < timedelta(minutes=2):
+                conn.close()
                 return 'You can only save once every 2 minutes.'
         
         # Insert data into the table
         cursor.execute('''
             INSERT INTO exercise_log (Time, Workout, Exercise, Reps, Weight, RIR, Form, Max5, Comments)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), workout, exercise, reps, weight, rir, form, max5, comments))
+        ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), workout, exercise, reps, weight, rir, form, max5, comments or ""))
         
         # Commit the changes and close the connection
         conn.commit()
         conn.close()
+        
     except Exception as e:
         return f'An error occurred: {str(e)}'
     
