@@ -94,26 +94,26 @@ def update_exercise_dropdown(selected_workout):
     return [{'label': exercise, 'value': exercise} for exercise in exercises]
 
 # Function to calculate 5Max
-def calculate_5max(reps, weight):
-    if reps == 3:
+def calculate_5max(reps, weight, rir):
+    if reps+rir == 3:
         return weight * 0.935
-    elif reps == 4:
+    elif reps+rir == 4:
         return weight * 0.963
-    elif reps == 5:
+    elif reps+rir == 5:
         return weight * 1
-    elif reps == 6:
+    elif reps+rir == 6:
         return weight * 1.02
-    elif reps == 7:
+    elif reps+rir == 7:
         return weight * 1.048
-    elif reps == 8:
+    elif reps+rir == 8:
         return weight * 1.077
-    elif reps == 9:
+    elif reps+rir == 9:
         return weight * 1.105
-    elif reps == 10:
+    elif reps+rir == 10:
         return weight * 1.133
-    elif reps == 11:
+    elif reps+rir == 11:
         return weight * 1.162
-    elif reps == 12:
+    elif reps+rir == 12:
         return weight * 1.19
     else:
         return None
