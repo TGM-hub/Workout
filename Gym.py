@@ -124,27 +124,40 @@ def update_exercise_dropdown(selected_workout):
 
 # Function to calculate 5Max
 def calculate_5max(reps, weight, rir):
-    if reps+rir == 3:
-        return weight * 0.935
-    elif reps+rir == 4:
-        return weight * 0.963
-    elif reps+rir == 5:
-        return weight * 1
-    elif reps+rir == 6:
-        return weight * 1.02
-    elif reps+rir == 7:
-        return weight * 1.048
-    elif reps+rir == 8:
-        return weight * 1.077
-    elif reps+rir == 9:
-        return weight * 1.105
-    elif reps+rir == 10:
-        return weight * 1.133
-    elif reps+rir == 11:
-        return weight * 1.162
-    elif reps+rir == 12:
-        return weight * 1.19
-    else:
+
+    try:
+        # Convert inputs to integers
+        reps = int(reps)
+        rir = int(rir)
+        
+        # Define a dictionary for multipliers
+        multipliers = {
+            3: 0.935,
+            4: 0.963,
+            5: 1,
+            6: 1.02,
+            7: 1.048,
+            8: 1.077,
+            9: 1.105,
+            10: 1.133,
+            11: 1.162,
+            12: 1.19
+        }
+        
+        # Calculate total reps
+        total_reps = reps + rir
+        
+        # Lookup multiplier based on total reps
+        multiplier = multipliers.get(total_reps)
+        
+        # Calculate and return 5Max, or return None if total_reps is not in multipliers
+        if multiplier is not None:
+            return weight * multiplier
+        else:
+            return None
+    except (ValueError, TypeError):
+        # Handle the case where conversion fails or inputs are invalid
+        print("Invalid input for reps or rir; must be integers.")
         return None
 
 # Callback to save the data to the SQLite database
