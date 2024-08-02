@@ -127,6 +127,7 @@ def calculate_5max(reps, weight, rir):
     try:
         reps = int(reps)
         rir = int(rir)
+        weight = float(weight)
         
         multipliers = {
             3: 0.935, 4: 0.963, 5: 1, 6: 1.02,
