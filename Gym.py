@@ -8,7 +8,7 @@ from datetime import datetime
 import plotly.express as px
 
 # Load the CSV file
-df = pd.read_csv(r'C:\Users\u228682\OneDrive - Trane Technologies\Documents\Python_Scripts\New folder\Gym_dash\split.csv')
+df = pd.read_csv(r'split.csv')
 
 # Transform the DataFrame to a long format
 df_long = df.melt(var_name='Workout', value_name='Exercise').dropna()
