@@ -9,7 +9,7 @@ import plotly.express as px
 import os
 
 # Load the CSV file
-df = pd.read_csv('workouts.csv')
+df = pd.read_csv('split.csv')
 
 # Transform the DataFrame to a long format
 df_long = df.melt(var_name='Workout', value_name='Exercise').dropna()
