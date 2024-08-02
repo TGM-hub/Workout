@@ -6,15 +6,17 @@ import pandas as pd
 import sqlite3
 from datetime import datetime
 import plotly.express as px
+import os
 
 # Load the CSV file
-df = pd.read_csv(r'split.csv')
+df = pd.read_csv('workouts.csv')
 
 # Transform the DataFrame to a long format
 df_long = df.melt(var_name='Workout', value_name='Exercise').dropna()
 
 # Initialize the Dash app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+server = app.server  # Expose the Flask server instance for gunicorn
 
 # Define the layout of the app
 app.layout = dbc.Container([
