@@ -136,13 +136,16 @@ def calculate_5max(reps, weight, rir):
         }
         
         total_reps = reps + rir
+        print(f"Total Reps: {total_reps}")
         multiplier = multipliers.get(total_reps)
+        print(f"Multiplier: {multiplier}")
         
         if multiplier is not None:
             return weight * multiplier
         else:
             return None
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as e:
+        print(f"Error: {e}")
         return None
 
 # Callback to save the data to the SQLite database
@@ -168,6 +171,9 @@ def save_to_db(n_clicks, workout, exercise, reps, weight, form, rir, comments):
     max5 = calculate_5max(reps, weight, rir)
     if max5 is None:
         return 'Invalid inputs for 5Max calculation.'
+
+    # Ensure comments is a string
+    comments = comments or ""
     
     try:
         # Connect to SQLite database
