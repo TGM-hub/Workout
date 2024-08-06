@@ -112,16 +112,13 @@ def calculate_5max(reps, weight, rir):
         reps = int(reps)
         rir = int(rir)
         weight = float(weight)
-
         multipliers = {
             3: 0.935, 4: 0.963, 5: 1, 6: 1.02,
             7: 1.048, 8: 1.077, 9: 1.105, 10: 1.133,
             11: 1.162, 12: 1.19
         }
-
         total_reps = reps + rir
         multiplier = multipliers.get(total_reps)
-
         if multiplier is not None:
             return weight * multiplier
         else:
@@ -145,9 +142,11 @@ def calculate_5max(reps, weight, rir):
 def save_to_csv(n_clicks, workout, exercise, reps, weight, form, rir, comments):
     if n_clicks is None:
         return ''
-
     if None in [workout, exercise, reps, weight, form, rir]:
         return 'Please fill in all fields.'
+
+    # Debugging statements
+    print(f"Workout: {workout}, Exercise: {exercise}, Reps: {reps}, Weight: {weight}, Form: {form}, RIR: {rir}, Comments: {comments}")
 
     # Calculate 5Max
     max5 = calculate_5max(reps, weight, rir)
@@ -184,10 +183,8 @@ def save_to_csv(n_clicks, workout, exercise, reps, weight, form, rir, comments):
 
         # Save the updated DataFrame to the CSV file
         df_log.to_csv(exercise_log_csv, index=False)
-
     except Exception as e:
         return f'An error occurred: {str(e)}'
-
     return 'Data saved successfully.'
 
 # Callback to display the exercise history
@@ -204,7 +201,6 @@ def display_exercise_history(selected_exercise):
 
     # Filter the DataFrame for the selected exercise
     exercise_history = df_log[df_log['Exercise'] == selected_exercise].sort_values(by='Time', ascending=False).head(5)
-
     if exercise_history.empty:
         return 'No history available for this exercise.'
 
@@ -235,7 +231,6 @@ def update_5max_chart(selected_exercise):
 
     # Filter the DataFrame for the selected exercise
     exercise_data = df_log[df_log['Exercise'] == selected_exercise].sort_values(by='Time')
-
     if exercise_data.empty:
         return {}
 
@@ -246,4 +241,3 @@ def update_5max_chart(selected_exercise):
 # Run the app
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 80))
-    app.run_server(debug=False, host='0.0.0.0', port=port)
