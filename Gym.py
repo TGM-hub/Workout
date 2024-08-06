@@ -128,20 +128,17 @@ def push_to_github(file_path, repo, branch, token):
     with open(file_path, 'r') as file:
         content = file.read()
     content_encoded = base64.b64encode(content.encode()).decode()
-
     url = f'https://api.github.com/repos/{repo}/contents/{file_path}'
     headers = {
         'Authorization': f'token {token}',
         'Content-Type': 'application/json'
     }
-
     # Get the SHA of the existing file
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         sha = response.json()['sha']
     else:
         sha = None
-
     data = {
         'message': 'Update exercise log',
         'content': content_encoded,
@@ -149,7 +146,6 @@ def push_to_github(file_path, repo, branch, token):
     }
     if sha:
         data['sha'] = sha
-
     response = requests.put(url, headers=headers, data=json.dumps(data))
     if response.status_code == 201 or response.status_code == 200:
         print('File updated successfully on GitHub.')
@@ -173,14 +169,11 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
     global df_log
     if n_clicks is None:
         return '', '', {}
-
     # Check if any required field is None or empty
     if None in [workout, exercise, reps, weight, form, rir] or '' in [str(reps), str(weight), str(form), str(rir)]:
         return 'Please fill in all fields.', '', {}
-
     # Debugging statements
     print(f"Workout: {workout}, Exercise: {exercise}, Reps: {reps}, Weight: {weight}, Form: {form}, RIR: {rir}, Comments: {comments}")
-
     # Validate numeric inputs
     try:
         reps = int(reps)
@@ -189,15 +182,12 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
         rir = int(rir)
     except ValueError as e:
         return f'Invalid input: {e}', '', {}
-
     # Calculate 5Max
     max5 = calculate_5max(reps, weight, rir)
     if max5 is None:
         return 'Invalid inputs for 5Max calculation.', '', {}
-
     # Ensure comments is a string
     comments = comments or ""
-
     try:
         # Check if the last save for the same workout and exercise was within 2 minutes
         last_entry = df_log[(df_log['Workout'] == workout) & (df_log['Exercise'] == exercise)].tail(1)
@@ -205,7 +195,6 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
             last_time = datetime.strptime(last_entry['Time'].values[0], '%Y-%m-%d %H:%M:%S')
             if datetime.now() - last_time < timedelta(minutes=2):
                 return 'You can only save once every 2 minutes.', '', {}
-
         # Append the new entry to the DataFrame
         new_entry = pd.DataFrame([{
             'Time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -219,20 +208,16 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
             'Comments': comments
         }])
         df_log = pd.concat([df_log, new_entry], ignore_index=True)
-
         # Save the updated DataFrame to the CSV file
         exercise_log_csv = 'exercise_log_csv.csv'
         df_log.to_csv(exercise_log_csv, index=False)
-
         # Push changes to GitHub
         repo = 'TGM-hub/Workout'
         branch = 'main'
         token = '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'
         push_to_github(exercise_log_csv, repo, branch, token)
-
     except Exception as e:
         return f'An error occurred: {str(e)}', '', {}
-
     # Update exercise history
     exercise_history = df_log[df_log['Exercise'] == exercise].sort_values(by='Time', ascending=False).head(5)
     if exercise_history.empty:
@@ -247,14 +232,12 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
             for _, row in exercise_history.iterrows()
         ])]
         history_content = dbc.Table(table_header + table_body, bordered=True, striped=True, hover=True)
-
     # Update 5Max chart
     exercise_data = df_log[df_log['Exercise'] == exercise].sort_values(by='Time')
     if exercise_data.empty:
         chart_content = {}
     else:
         chart_content = px.line(exercise_data, x='Time', y='Max5', title=f'5Max Over Time for {exercise}')
-
     return 'Data saved successfully.', history_content, chart_content
 
 # Run the app
