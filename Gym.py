@@ -186,7 +186,7 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
         df_log = pd.concat([df_log, new_entry], ignore_index=True)
 
         # Save the updated DataFrame to the CSV file
-        df_log.to_csv(exercise_log_csv, index=False)
+        df_log.to_csv('exercise_log_csv', index=False)
     except Exception as e:
         return f'An error occurred: {str(e)}', '', {}
 
