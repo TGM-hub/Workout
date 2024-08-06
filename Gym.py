@@ -7,8 +7,9 @@ from datetime import datetime, timedelta
 import plotly.express as px
 import os
 
-# Load the CSV file
+# Load the CSV files
 df = pd.read_csv('split.csv')
+df_log = pd.read_csv(exercise_log_csv)
 
 # Transform the DataFrame to a long format
 df_long = df.melt(var_name='Workout', value_name='Exercise').dropna()
@@ -16,9 +17,6 @@ df_long = df.melt(var_name='Workout', value_name='Exercise').dropna()
 # Initialize the Dash app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server  # Expose the Flask server instance for gunicorn
-
-# Define the CSV file for storing exercise logs
-exercise_log_csv = 'exercise_log.csv'
 
 # Define the layout of the app
 app.layout = dbc.Container([
@@ -165,9 +163,6 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
     comments = comments or ""
     
     try:
-        # Read the existing CSV file
-        df_log = pd.read_csv(exercise_log_csv)
-        
         # Check if the last save for the same workout and exercise was within 2 minutes
         last_entry = df_log[(df_log['Workout'] == workout) & (df_log['Exercise'] == exercise)].tail(1)
         if not last_entry.empty:
