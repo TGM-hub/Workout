@@ -8,8 +8,8 @@ import plotly.express as px
 import os
 
 # Load the CSV files
-df = pd.read_csv(split.csv)
-df_log = pd.read_csv(exercise_log_csv.csv)
+df = pd.read_csv('split.csv')
+df_log = pd.read_csv('exercise_log.csv')
 
 # Transform the DataFrame to a long format
 df_long = df.melt(var_name='Workout', value_name='Exercise').dropna()
@@ -138,14 +138,14 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
     global df_log  # Ensure df_log is updated globally
     if n_clicks is None:
         return '', '', {}
-
+    
     # Check if any required field is None or empty
     if None in [workout, exercise, reps, weight, form, rir] or '' in [str(reps), str(weight), str(form), str(rir)]:
         return 'Please fill in all fields.', '', {}
-
+    
     # Debugging statements
     print(f"Workout: {workout}, Exercise: {exercise}, Reps: {reps}, Weight: {weight}, Form: {form}, RIR: {rir}, Comments: {comments}")
-
+    
     # Validate numeric inputs
     try:
         reps = int(reps)
@@ -154,15 +154,15 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
         rir = int(rir)
     except ValueError as e:
         return f'Invalid input: {e}', '', {}
-
+    
     # Calculate 5Max
     max5 = calculate_5max(reps, weight, rir)
     if max5 is None:
         return 'Invalid inputs for 5Max calculation.', '', {}
-
+    
     # Ensure comments is a string
     comments = comments or ""
-
+    
     try:
         # Check if the last save for the same workout and exercise was within 2 minutes
         last_entry = df_log[(df_log['Workout'] == workout) & (df_log['Exercise'] == exercise)].tail(1)
@@ -170,7 +170,7 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
             last_time = datetime.strptime(last_entry['Time'].values[0], '%Y-%m-%d %H:%M:%S')
             if datetime.now() - last_time < timedelta(minutes=2):
                 return 'You can only save once every 2 minutes.', '', {}
-
+        
         # Append the new entry to the DataFrame
         new_entry = pd.DataFrame([{
             'Time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -184,12 +184,12 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
             'Comments': comments
         }])
         df_log = pd.concat([df_log, new_entry], ignore_index=True)
-
+        
         # Save the updated DataFrame to the CSV file
-        df_log.to_csv('exercise_log_csv', index=False)
+        df_log.to_csv('exercise_log.csv', index=False)
     except Exception as e:
         return f'An error occurred: {str(e)}', '', {}
-
+    
     # Update exercise history
     exercise_history = df_log[df_log['Exercise'] == exercise].sort_values(by='Time', ascending=False).head(5)
     if exercise_history.empty:
@@ -204,14 +204,14 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
             for _, row in exercise_history.iterrows()
         ])]
         history_content = dbc.Table(table_header + table_body, bordered=True, striped=True, hover=True)
-
+    
     # Update 5Max chart
     exercise_data = df_log[df_log['Exercise'] == exercise].sort_values(by='Time')
     if exercise_data.empty:
         chart_content = {}
     else:
         chart_content = px.line(exercise_data, x='Time', y='Max5', title=f'5Max Over Time for {exercise}')
-
+    
     return 'Data saved successfully.', history_content, chart_content
 
 # Run the app
