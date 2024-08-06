@@ -5,7 +5,6 @@ from dash.dependencies import Input, Output, State
 import pandas as pd
 from datetime import datetime, timedelta
 import plotly.express as px
-import os
 import requests
 import base64
 import json
@@ -207,6 +206,8 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
             'Max5': max5,
             'Comments': comments
         }])
+        # Exclude empty or all-NA entries before concatenation
+        new_entry = new_entry.dropna(how='all')
         df_log = pd.concat([df_log, new_entry], ignore_index=True)
         # Save the updated DataFrame to the CSV file
         exercise_log_csv = 'exercise_log_csv.csv'
@@ -214,7 +215,7 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
         # Push changes to GitHub
         repo = 'TGM-hub/Workout'
         branch = 'main'
-        token = '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'
+        token = r'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'  # Replace with your actual GitHub token
         push_to_github(exercise_log_csv, repo, branch, token)
     except Exception as e:
         return f'An error occurred: {str(e)}', '', {}
