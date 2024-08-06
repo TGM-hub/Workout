@@ -3,7 +3,6 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
 import pandas as pd
-import sqlite3
 from datetime import datetime, timedelta
 import plotly.express as px
 import os
@@ -18,28 +17,13 @@ df_long = df.melt(var_name='Workout', value_name='Exercise').dropna()
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server  # Expose the Flask server instance for gunicorn
 
-def init_db():
-    conn = sqlite3.connect('exercise_log.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS exercise_log (
-            id INTEGER PRIMARY KEY,
-            Time TEXT,
-            Workout TEXT,
-            Exercise TEXT,
-            Reps INTEGER,
-            Weight INTEGER,
-            RIR INTEGER,
-            Form INTEGER,
-            Max5 REAL,
-            Comments TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# Define the CSV file for storing exercise logs
+exercise_log_csv = 'exercise_log.csv'
 
-# Call the database initialization function
-init_db()
+# Initialize the CSV file if it doesn't exist
+if not os.path.exists(exercise_log_csv):
+    columns = ['Time', 'Workout', 'Exercise', 'Reps', 'Weight', 'RIR', 'Form', 'Max5', 'Comments']
+    pd.DataFrame(columns=columns).to_csv(exercise_log_csv, index=False)
 
 # Define the layout of the app
 app.layout = dbc.Container([
@@ -128,16 +112,16 @@ def calculate_5max(reps, weight, rir):
         reps = int(reps)
         rir = int(rir)
         weight = float(weight)
-        
+
         multipliers = {
             3: 0.935, 4: 0.963, 5: 1, 6: 1.02,
             7: 1.048, 8: 1.077, 9: 1.105, 10: 1.133,
             11: 1.162, 12: 1.19
         }
-        
+
         total_reps = reps + rir
         multiplier = multipliers.get(total_reps)
-        
+
         if multiplier is not None:
             return weight * multiplier
         else:
@@ -146,7 +130,7 @@ def calculate_5max(reps, weight, rir):
         print(f"Error: {e}")
         return None
 
-# Callback to save the data to the SQLite database
+# Callback to save the data to the CSV file
 @app.callback(
     Output('save-status', 'children'),
     [Input('save-button', 'n_clicks')],
@@ -158,54 +142,52 @@ def calculate_5max(reps, weight, rir):
      State('comments-input', 'value'),
      State('rir-input', 'value')]
 )
-def save_to_db(n_clicks, workout, exercise, reps, weight, form, rir, comments):
+def save_to_csv(n_clicks, workout, exercise, reps, weight, form, rir, comments):
     if n_clicks is None:
         return ''
-    
+
     if None in [workout, exercise, reps, weight, form, rir]:
         return 'Please fill in all fields.'
-    
+
     # Calculate 5Max
     max5 = calculate_5max(reps, weight, rir)
     if max5 is None:
         return 'Invalid inputs for 5Max calculation.'
-    
+
     # Ensure comments is a string
     comments = comments or ""
-    
+
     try:
-        # Connect to SQLite database
-        conn = sqlite3.connect('exercise_log.db')
-        cursor = conn.cursor()
-        
+        # Read the existing CSV file
+        df_log = pd.read_csv(exercise_log_csv)
+
         # Check if the last save for the same workout and exercise was within 2 minutes
-        cursor.execute('''
-            SELECT Time
-            FROM exercise_log
-            WHERE Workout = ? AND Exercise = ?
-            ORDER BY Time DESC
-            LIMIT 1
-        ''', (workout, exercise))
-        last_time = cursor.fetchone()
-        
-        if last_time:
-            last_time = datetime.strptime(last_time[0], '%Y-%m-%d %H:%M:%S')
+        last_entry = df_log[(df_log['Workout'] == workout) & (df_log['Exercise'] == exercise)].tail(1)
+        if not last_entry.empty:
+            last_time = datetime.strptime(last_entry['Time'].values[0], '%Y-%m-%d %H:%M:%S')
             if datetime.now() - last_time < timedelta(minutes=2):
-                conn.close()
                 return 'You can only save once every 2 minutes.'
-        
-        # Insert data into the table
-        cursor.execute('''
-            INSERT INTO exercise_log (Time, Workout, Exercise, Reps, Weight, RIR, Form, Max5, Comments)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), workout, exercise, reps, weight, rir, form, max5, comments))
-        
-        # Commit the changes and close the connection
-        conn.commit()
-        conn.close()
+
+        # Append the new entry to the DataFrame
+        new_entry = {
+            'Time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'Workout': workout,
+            'Exercise': exercise,
+            'Reps': reps,
+            'Weight': weight,
+            'RIR': rir,
+            'Form': form,
+            'Max5': max5,
+            'Comments': comments
+        }
+        df_log = df_log.append(new_entry, ignore_index=True)
+
+        # Save the updated DataFrame to the CSV file
+        df_log.to_csv(exercise_log_csv, index=False)
+
     except Exception as e:
         return f'An error occurred: {str(e)}'
-    
+
     return 'Data saved successfully.'
 
 # Callback to display the exercise history
@@ -216,42 +198,26 @@ def save_to_db(n_clicks, workout, exercise, reps, weight, form, rir, comments):
 def display_exercise_history(selected_exercise):
     if selected_exercise is None:
         return ''
-    
-    # Connect to SQLite database
-    conn = sqlite3.connect('exercise_log.db')
-    cursor = conn.cursor()
-    
-    # Query the database for the selected exercise
-    cursor.execute('''
-        SELECT Time, Workout, Reps, Weight, RIR, Form, Max5
-        FROM exercise_log
-        WHERE Exercise = ?
-        ORDER BY Time DESC
-        LIMIT 5
-    ''', (selected_exercise,))
-    rows = cursor.fetchall()
-    
-    # Query for the best set
-    cursor.execute('''
-        SELECT Time, Workout, Reps, Weight, RIR, Form, Max5
-        FROM exercise_log
-        WHERE Exercise = ?
-        ORDER BY RIR ASC, Form DESC, Max5 DESC
-        LIMIT 1
-    ''', (selected_exercise,))
-    best_set = cursor.fetchone()
-    conn.close()
-    
-    if not rows:
+
+    # Read the CSV file
+    df_log = pd.read_csv(exercise_log_csv)
+
+    # Filter the DataFrame for the selected exercise
+    exercise_history = df_log[df_log['Exercise'] == selected_exercise].sort_values(by='Time', ascending=False).head(5)
+
+    if exercise_history.empty:
         return 'No history available for this exercise.'
-    
+
+    # Find the best set
+    best_set = exercise_history.sort_values(by=['RIR', 'Form', 'Max5'], ascending=[True, False, False]).head(1)
+
     # Create a table to display the history
     table_header = [
         html.Thead(html.Tr([html.Th(col) for col in ['Time', 'Workout', 'Reps', 'Weight', 'RIR', 'Form', 'Max5']]))
     ]
     table_body = [html.Tbody([
-        html.Tr([html.Td(cell) for cell in row], style={'backgroundColor': '#d4edda'} if row == best_set else {})
-        for row in rows
+        html.Tr([html.Td(cell) for cell in row], style={'backgroundColor': '#d4edda'} if row.equals(best_set.iloc[0]) else {})
+        for _, row in exercise_history.iterrows()
     ])]
     return dbc.Table(table_header + table_body, bordered=True, striped=True, hover=True)
 
@@ -263,30 +229,18 @@ def display_exercise_history(selected_exercise):
 def update_5max_chart(selected_exercise):
     if selected_exercise is None:
         return {}
-    
-    # Connect to SQLite database
-    conn = sqlite3.connect('exercise_log.db')
-    cursor = conn.cursor()
-    
-    # Query the database for the selected exercise
-    cursor.execute('''
-        SELECT Time, Max5
-        FROM exercise_log
-        WHERE Exercise = ?
-        ORDER BY Time ASC
-    ''', (selected_exercise,))
-    rows = cursor.fetchall()
-    conn.close()
-    
-    if not rows:
+
+    # Read the CSV file
+    df_log = pd.read_csv(exercise_log_csv)
+
+    # Filter the DataFrame for the selected exercise
+    exercise_data = df_log[df_log['Exercise'] == selected_exercise].sort_values(by='Time')
+
+    if exercise_data.empty:
         return {}
-    
-    # Create a DataFrame from the query results
-    df_chart = pd.DataFrame(rows, columns=['Time', 'Max5'])
-    df_chart['Time'] = pd.to_datetime(df_chart['Time'])
-    
+
     # Create the line chart
-    fig = px.line(df_chart, x='Time', y='Max5', title=f'5Max Over Time for {selected_exercise}')
+    fig = px.line(exercise_data, x='Time', y='Max5', title=f'5Max Over Time for {selected_exercise}')
     return fig
 
 # Run the app
