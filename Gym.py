@@ -139,14 +139,25 @@ def calculate_5max(reps, weight, rir):
      State('comments-input', 'value'),
      State('rir-input', 'value')]
 )
-def save_to_csv(n_clicks, workout, exercise, reps, weight, form, rir, comments):
+def save_to_csv(n_clicks, workout, exercise, reps, weight, form, comments, rir):
     if n_clicks is None:
         return ''
-    if None in [workout, exercise, reps, weight, form, rir]:
+
+    # Check if any required field is None or empty
+    if None in [workout, exercise, reps, weight, form, rir] or '' in [str(reps), str(weight), str(form), str(rir)]:
         return 'Please fill in all fields.'
 
     # Debugging statements
     print(f"Workout: {workout}, Exercise: {exercise}, Reps: {reps}, Weight: {weight}, Form: {form}, RIR: {rir}, Comments: {comments}")
+
+    # Validate numeric inputs
+    try:
+        reps = int(reps)
+        weight = float(weight)
+        form = int(form)
+        rir = int(rir)
+    except ValueError as e:
+        return f'Invalid input: {e}'
 
     # Calculate 5Max
     max5 = calculate_5max(reps, weight, rir)
@@ -168,7 +179,7 @@ def save_to_csv(n_clicks, workout, exercise, reps, weight, form, rir, comments):
                 return 'You can only save once every 2 minutes.'
 
         # Append the new entry to the DataFrame
-        new_entry = {
+        new_entry = pd.DataFrame([{
             'Time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'Workout': workout,
             'Exercise': exercise,
@@ -178,13 +189,15 @@ def save_to_csv(n_clicks, workout, exercise, reps, weight, form, rir, comments):
             'Form': form,
             'Max5': max5,
             'Comments': comments
-        }
-        df_log = df_log.append(new_entry, ignore_index=True)
+        }])
+
+        df_log = pd.concat([df_log, new_entry], ignore_index=True)
 
         # Save the updated DataFrame to the CSV file
         df_log.to_csv(exercise_log_csv, index=False)
     except Exception as e:
         return f'An error occurred: {str(e)}'
+
     return 'Data saved successfully.'
 
 # Callback to display the exercise history
