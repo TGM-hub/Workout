@@ -218,7 +218,6 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
             'Max5': max5,
             'Comments': comments
         }])
-        global df_log  # Ensure df_log is updated globally
         df_log = pd.concat([df_log, new_entry], ignore_index=True)
 
         # Save the updated DataFrame to the CSV file
