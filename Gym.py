@@ -6,6 +6,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import plotly.express as px
 import os
+import requests 
 
 # Load the CSV files
 df = pd.read_csv('split.csv')
@@ -120,7 +121,39 @@ def calculate_5max(reps, weight, rir):
         print(f"Error: {e}")
         return None
 
-# Combined callback to save the data and update the history and chart
+# Function to push changes to GitHub
+def push_to_github(file_path, repo, branch, token):
+    with open(file_path, 'r') as file:
+        content = file.read()
+    content_encoded = base64.b64encode(content.encode()).decode()
+    
+    url = f'https://api.github.com/repos/{repo}/contents/{file_path}'
+    headers = {
+        'Authorization': f'token {token}',
+        'Content-Type': 'application/json'
+    }
+    
+    # Get the SHA of the existing file
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        sha = response.json()['sha']
+    else:
+        sha = None
+    
+    data = {
+        'message': 'Update exercise log',
+        'content': content_encoded,
+        'branch': branch
+    }
+    if sha:
+        data['sha'] = sha
+    
+    response = requests.put(url, headers=headers, data=json.dumps(data))
+    if response.status_code == 201 or response.status_code == 200:
+        print('File updated successfully on GitHub.')
+    else:
+        print(f'Failed to update file on GitHub: {response.json()}')
+
 @app.callback(
     [Output('save-status', 'children'),
      Output('exercise-history', 'children'),
@@ -186,7 +219,14 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
         df_log = pd.concat([df_log, new_entry], ignore_index=True)
         
         # Save the updated DataFrame to the CSV file
-        df_log.to_csv('exercise_log.csv', index=False)
+        df_log.to_csv(exercise_log_csv, index=False)
+        
+        # Push changes to GitHub
+        repo = 'TGM-hub/Workout' 
+        branch = 'main' 
+        token = os.getenv('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')  # Ensure you have set this environment variable
+        push_to_github(exercise_log_csv, repo, branch, token)
+    
     except Exception as e:
         return f'An error occurred: {str(e)}', '', {}
     
