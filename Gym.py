@@ -214,7 +214,7 @@ def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, r
         # Push changes to GitHub
         repo = 'TGM-hub/Workout'
         branch = 'main'
-        token = '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'
+        token = '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'
         push_to_github(exercise_log_csv, repo, branch, token)
     except Exception as e:
         return f'An error occurred: {str(e)}', '', {}
