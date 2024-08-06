@@ -7,13 +7,9 @@ from datetime import datetime, timedelta
 import plotly.express as px
 import os
 
-# Define the absolute path for the CSV files
-split_csv = os.path.join(os.path.dirname(__file__), 'split.csv')
-exercise_log_csv = os.path.join(os.path.dirname(__file__), 'exercise_log.csv')
-
 # Load the CSV files
-df = pd.read_csv(split_csv)
-df_log = pd.read_csv(exercise_log_csv)
+df = pd.read_csv(split_csv.csv)
+df_log = pd.read_csv(exercise_log_csv.csv)
 
 # Transform the DataFrame to a long format
 df_long = df.melt(var_name='Workout', value_name='Exercise').dropna()
