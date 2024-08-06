@@ -4,7 +4,7 @@ from dash import dcc, html
 from dash.dependencies import Input, Output, State
 import pandas as pd
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 import plotly.express as px
 import os
 
@@ -136,9 +136,7 @@ def calculate_5max(reps, weight, rir):
         }
         
         total_reps = reps + rir
-        print(f"Total Reps: {total_reps}")
         multiplier = multipliers.get(total_reps)
-        print(f"Multiplier: {multiplier}")
         
         if multiplier is not None:
             return weight * multiplier
@@ -171,7 +169,7 @@ def save_to_db(n_clicks, workout, exercise, reps, weight, form, rir, comments):
     max5 = calculate_5max(reps, weight, rir)
     if max5 is None:
         return 'Invalid inputs for 5Max calculation.'
-
+    
     # Ensure comments is a string
     comments = comments or ""
     
@@ -200,12 +198,11 @@ def save_to_db(n_clicks, workout, exercise, reps, weight, form, rir, comments):
         cursor.execute('''
             INSERT INTO exercise_log (Time, Workout, Exercise, Reps, Weight, RIR, Form, Max5, Comments)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), workout, exercise, reps, weight, rir, form, max5, comments or ""))
+        ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), workout, exercise, reps, weight, rir, form, max5, comments))
         
         # Commit the changes and close the connection
         conn.commit()
         conn.close()
-        
     except Exception as e:
         return f'An error occurred: {str(e)}'
     
@@ -219,9 +216,11 @@ def save_to_db(n_clicks, workout, exercise, reps, weight, form, rir, comments):
 def display_exercise_history(selected_exercise):
     if selected_exercise is None:
         return ''
+    
     # Connect to SQLite database
     conn = sqlite3.connect('exercise_log.db')
     cursor = conn.cursor()
+    
     # Query the database for the selected exercise
     cursor.execute('''
         SELECT Time, Workout, Reps, Weight, RIR, Form, Max5
@@ -231,6 +230,7 @@ def display_exercise_history(selected_exercise):
         LIMIT 5
     ''', (selected_exercise,))
     rows = cursor.fetchall()
+    
     # Query for the best set
     cursor.execute('''
         SELECT Time, Workout, Reps, Weight, RIR, Form, Max5
@@ -241,8 +241,10 @@ def display_exercise_history(selected_exercise):
     ''', (selected_exercise,))
     best_set = cursor.fetchone()
     conn.close()
+    
     if not rows:
         return 'No history available for this exercise.'
+    
     # Create a table to display the history
     table_header = [
         html.Thead(html.Tr([html.Th(col) for col in ['Time', 'Workout', 'Reps', 'Weight', 'RIR', 'Form', 'Max5']]))
@@ -261,9 +263,11 @@ def display_exercise_history(selected_exercise):
 def update_5max_chart(selected_exercise):
     if selected_exercise is None:
         return {}
+    
     # Connect to SQLite database
     conn = sqlite3.connect('exercise_log.db')
     cursor = conn.cursor()
+    
     # Query the database for the selected exercise
     cursor.execute('''
         SELECT Time, Max5
@@ -273,11 +277,14 @@ def update_5max_chart(selected_exercise):
     ''', (selected_exercise,))
     rows = cursor.fetchall()
     conn.close()
+    
     if not rows:
         return {}
+    
     # Create a DataFrame from the query results
     df_chart = pd.DataFrame(rows, columns=['Time', 'Max5'])
     df_chart['Time'] = pd.to_datetime(df_chart['Time'])
+    
     # Create the line chart
     fig = px.line(df_chart, x='Time', y='Max5', title=f'5Max Over Time for {selected_exercise}')
     return fig
