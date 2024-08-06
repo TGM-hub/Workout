@@ -170,6 +170,7 @@ def push_to_github(file_path, repo, branch, token):
      State('rir-input', 'value')]
 )
 def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, rir):
+    global df_log
     if n_clicks is None:
         return '', '', {}
 
