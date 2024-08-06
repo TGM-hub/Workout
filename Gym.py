@@ -9,7 +9,7 @@ import os
 
 # Load the CSV files
 df = pd.read_csv('split.csv')
-df_log = pd.read_csv('exercise_log.csv')
+df_log = pd.read_csv('exercise_log_csv.csv')
 
 # Transform the DataFrame to a long format
 df_long = df.melt(var_name='Workout', value_name='Exercise').dropna()
