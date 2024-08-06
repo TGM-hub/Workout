@@ -8,7 +8,7 @@ import plotly.express as px
 import os
 
 # Load the CSV files
-df = pd.read_csv(split_csv.csv)
+df = pd.read_csv(split.csv)
 df_log = pd.read_csv(exercise_log_csv.csv)
 
 # Transform the DataFrame to a long format
