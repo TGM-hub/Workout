@@ -20,11 +20,6 @@ server = app.server  # Expose the Flask server instance for gunicorn
 # Define the CSV file for storing exercise logs
 exercise_log_csv = 'exercise_log.csv'
 
-# Initialize the CSV file if it doesn't exist
-if not os.path.exists(exercise_log_csv):
-    columns = ['Time', 'Workout', 'Exercise', 'Reps', 'Weight', 'RIR', 'Form', 'Max5', 'Comments']
-    pd.DataFrame(columns=columns).to_csv(exercise_log_csv, index=False)
-
 # Define the layout of the app
 app.layout = dbc.Container([
     dbc.Row([
@@ -66,7 +61,7 @@ app.layout = dbc.Container([
         ], width=6, className='mb-3'),
         dbc.Col([
             html.Label('RIR', style={'font-size': '18px', 'margin-top': '10px'}),
-            dbc.Input(id='rir-input', type='number', min=0, max=10, step=1, style={'font-size': '16px'}),
+            dbc.Input(id='rir-input', type='number', min=0, max=3, step=1, style={'font-size': '16px'}),
         ], width=6, className='mb-3'),
     ]),
     dbc.Row([
@@ -127,9 +122,11 @@ def calculate_5max(reps, weight, rir):
         print(f"Error: {e}")
         return None
 
-# Callback to save the data to the CSV file
+# Combined callback to save the data and update the history and chart
 @app.callback(
-    Output('save-status', 'children'),
+    [Output('save-status', 'children'),
+     Output('exercise-history', 'children'),
+     Output('5max-chart', 'figure')],
     [Input('save-button', 'n_clicks')],
     [State('workout-dropdown', 'value'),
      State('exercise-dropdown', 'value'),
@@ -139,17 +136,17 @@ def calculate_5max(reps, weight, rir):
      State('comments-input', 'value'),
      State('rir-input', 'value')]
 )
-def save_to_csv(n_clicks, workout, exercise, reps, weight, form, comments, rir):
+def save_and_update(n_clicks, workout, exercise, reps, weight, form, comments, rir):
     if n_clicks is None:
-        return ''
-
+        return '', '', {}
+    
     # Check if any required field is None or empty
     if None in [workout, exercise, reps, weight, form, rir] or '' in [str(reps), str(weight), str(form), str(rir)]:
-        return 'Please fill in all fields.'
-
+        return 'Please fill in all fields.', '', {}
+    
     # Debugging statements
     print(f"Workout: {workout}, Exercise: {exercise}, Reps: {reps}, Weight: {weight}, Form: {form}, RIR: {rir}, Comments: {comments}")
-
+    
     # Validate numeric inputs
     try:
         reps = int(reps)
@@ -157,27 +154,27 @@ def save_to_csv(n_clicks, workout, exercise, reps, weight, form, comments, rir):
         form = int(form)
         rir = int(rir)
     except ValueError as e:
-        return f'Invalid input: {e}'
-
+        return f'Invalid input: {e}', '', {}
+    
     # Calculate 5Max
     max5 = calculate_5max(reps, weight, rir)
     if max5 is None:
-        return 'Invalid inputs for 5Max calculation.'
-
+        return 'Invalid inputs for 5Max calculation.', '', {}
+    
     # Ensure comments is a string
     comments = comments or ""
-
+    
     try:
         # Read the existing CSV file
         df_log = pd.read_csv(exercise_log_csv)
-
+        
         # Check if the last save for the same workout and exercise was within 2 minutes
         last_entry = df_log[(df_log['Workout'] == workout) & (df_log['Exercise'] == exercise)].tail(1)
         if not last_entry.empty:
             last_time = datetime.strptime(last_entry['Time'].values[0], '%Y-%m-%d %H:%M:%S')
             if datetime.now() - last_time < timedelta(minutes=2):
-                return 'You can only save once every 2 minutes.'
-
+                return 'You can only save once every 2 minutes.', '', {}
+        
         # Append the new entry to the DataFrame
         new_entry = pd.DataFrame([{
             'Time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -190,67 +187,38 @@ def save_to_csv(n_clicks, workout, exercise, reps, weight, form, comments, rir):
             'Max5': max5,
             'Comments': comments
         }])
-
         df_log = pd.concat([df_log, new_entry], ignore_index=True)
-
+        
         # Save the updated DataFrame to the CSV file
         df_log.to_csv(exercise_log_csv, index=False)
     except Exception as e:
-        return f'An error occurred: {str(e)}'
-
-    return 'Data saved successfully.'
-
-# Callback to display the exercise history
-@app.callback(
-    Output('exercise-history', 'children'),
-    [Input('exercise-dropdown', 'value')]
-)
-def display_exercise_history(selected_exercise):
-    if selected_exercise is None:
-        return ''
-
-    # Read the CSV file
-    df_log = pd.read_csv(exercise_log_csv)
-
-    # Filter the DataFrame for the selected exercise
-    exercise_history = df_log[df_log['Exercise'] == selected_exercise].sort_values(by='Time', ascending=False).head(5)
+        return f'An error occurred: {str(e)}', '', {}
+    
+    # Update exercise history
+    exercise_history = df_log[df_log['Exercise'] == exercise].sort_values(by='Time', ascending=False).head(5)
     if exercise_history.empty:
-        return 'No history available for this exercise.'
-
-    # Find the best set
-    best_set = exercise_history.sort_values(by=['RIR', 'Form', 'Max5'], ascending=[True, False, False]).head(1)
-
-    # Create a table to display the history
-    table_header = [
-        html.Thead(html.Tr([html.Th(col) for col in ['Time', 'Workout', 'Reps', 'Weight', 'RIR', 'Form', 'Max5']]))
-    ]
-    table_body = [html.Tbody([
-        html.Tr([html.Td(cell) for cell in row], style={'backgroundColor': '#d4edda'} if row.equals(best_set.iloc[0]) else {})
-        for _, row in exercise_history.iterrows()
-    ])]
-    return dbc.Table(table_header + table_body, bordered=True, striped=True, hover=True)
-
-# Callback to display the 5Max over time chart
-@app.callback(
-    Output('5max-chart', 'figure'),
-    [Input('exercise-dropdown', 'value')]
-)
-def update_5max_chart(selected_exercise):
-    if selected_exercise is None:
-        return {}
-
-    # Read the CSV file
-    df_log = pd.read_csv(exercise_log_csv)
-
-    # Filter the DataFrame for the selected exercise
-    exercise_data = df_log[df_log['Exercise'] == selected_exercise].sort_values(by='Time')
+        history_content = 'No history available for this exercise.'
+    else:
+        best_set = exercise_history.sort_values(by=['RIR', 'Form', 'Max5'], ascending=[True, False, False]).head(1)
+        table_header = [
+            html.Thead(html.Tr([html.Th(col) for col in ['Time', 'Workout', 'Reps', 'Weight', 'RIR', 'Form', 'Max5']]))
+        ]
+        table_body = [html.Tbody([
+            html.Tr([html.Td(cell) for cell in row], style={'backgroundColor': '#d4edda'} if row.equals(best_set.iloc[0]) else {})
+            for _, row in exercise_history.iterrows()
+        ])]
+        history_content = dbc.Table(table_header + table_body, bordered=True, striped=True, hover=True)
+    
+    # Update 5Max chart
+    exercise_data = df_log[df_log['Exercise'] == exercise].sort_values(by='Time')
     if exercise_data.empty:
-        return {}
-
-    # Create the line chart
-    fig = px.line(exercise_data, x='Time', y='Max5', title=f'5Max Over Time for {selected_exercise}')
-    return fig
+        chart_content = {}
+    else:
+        chart_content = px.line(exercise_data, x='Time', y='Max5', title=f'5Max Over Time for {exercise}')
+    
+    return 'Data saved successfully.', history_content, chart_content
 
 # Run the app
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 80))
+    app.run_server(debug=False, host='0.0.0.0', port=port)
